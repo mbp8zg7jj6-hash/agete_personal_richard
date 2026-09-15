@@ -94,17 +94,17 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         # Llamar a Claude
         await update.message.chat.send_action("typing")
         
-        client = get_anthropic_client()
-        response = client.messages.create(
-            model="claude-sonnet-5",
-            max_tokens=1024,
-            system=context_text,
-            messages=[
-                {"role": "user", "content": user_message}
-            ]
-        )
-        
-        agent_response = ""
+       client = get_anthropic_client()
+response = client.messages.create(
+    model="claude-sonnet-5",
+    max_tokens=1024,
+    system=context_text,
+    messages=[
+        {"role": "user", "content": user_message}
+    ]
+)
+
+agent_response = ""
 for block in response.content:
     if hasattr(block, 'text'):
         agent_response += block.text
