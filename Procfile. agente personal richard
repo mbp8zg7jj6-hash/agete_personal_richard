@@ -1,1 +1,1 @@
-worker: python agente_personal_bot.py
+web: python -u agente_personal_bot.py
