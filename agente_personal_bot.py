@@ -96,7 +96,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         client = get_anthropic_client()
         response = client.messages.create(
-            model="claude-opus-4-1",
+            model="claude-sonnet-5",
             max_tokens=1024,
             system=context_text,
             messages=[
