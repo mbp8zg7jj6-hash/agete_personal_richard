@@ -10,7 +10,10 @@ def get_anthropic_client():
     api_key = os.getenv("ANTHROPIC_API_KEY")
     if not api_key:
         raise ValueError("ANTHROPIC_API_KEY no configurada")
-    return anthropic.Anthropic(api_key=api_key)
+    return anthropic.Anthropic(
+        api_key=api_key,
+        timeout=30.0
+    )
 
 # Ruta del archivo de memoria
 MEMORY_FILE = "memory.json"
