@@ -104,7 +104,10 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             ]
         )
         
-        agent_response = response.content[0].text
+        agent_response = ""
+for block in response.content:
+    if hasattr(block, 'text'):
+        agent_response += block.text
         
         # Guardar conversación en memoria
         memory["conversations"].append({
