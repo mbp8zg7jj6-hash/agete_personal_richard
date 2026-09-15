@@ -106,8 +106,10 @@ response = client.messages.create(
 
 agent_response = ""
 for block in response.content:
-    if hasattr(block, 'text'):
+    try:
         agent_response += block.text
+    except AttributeError:
+        continue
         
         # Guardar conversación en memoria
         memory["conversations"].append({
