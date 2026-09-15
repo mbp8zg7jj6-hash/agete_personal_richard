@@ -6,7 +6,11 @@ from telegram.ext import Application, CommandHandler, MessageHandler, filters, C
 import anthropic
 
 # Configurar cliente de Anthropic
-client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+def get_anthropic_client():
+    api_key = os.getenv("ANTHROPIC_API_KEY")
+    if not api_key:
+        raise ValueError("ANTHROPIC_API_KEY no configurada")
+    return anthropic.Anthropic(api_key=api_key)
 
 # Ruta del archivo de memoria
 MEMORY_FILE = "memory.json"
@@ -25,7 +29,6 @@ def save_memory(memory):
 
 def extract_user_details(message_text, current_details):
     """Intenta extraer detalles sobre el usuario del mensaje"""
-    # Palabras clave para identificar información personal
     keywords = {
         "trabajo": ["trabajo", "empresa", "puesto", "laboro", "ocupación"],
         "hobbies": ["me gusta", "hobby", "disfruto", "pasatiempo", "me encanta"],
@@ -58,36 +61,37 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_message = update.message.text
     user_id = update.message.from_user.id
     
-    # Cargar memoria
-    memory = load_memory()
-    
-    # Extraer detalles del usuario si hay
-    memory["user_details"] = extract_user_details(user_message, memory["user_details"])
-    
-    # Construir contexto para Claude
-    context_text = "Eres un agente personal amigable, casual y honesto. Tu objetivo es:\n"
-    context_text += "1. Ser un compañero de conversación genuino\n"
-    context_text += "2. Recordar detalles sobre la persona y usarlos en la conversación\n"
-    context_text += "3. Dar recomendaciones honestas (sin fabricar cosas)\n"
-    context_text += "4. Nunca mentir\n\n"
-    
-    # Agregar detalles conocidos del usuario si los hay
-    if memory["user_details"]:
-        context_text += "Detalles que sé sobre el usuario:\n"
-        for category, items in memory["user_details"].items():
-            context_text += f"- {category}: {', '.join(set(items[:3]))}\n"
-        context_text += "\n"
-    
-    # Agregar últimas conversaciones para contexto
-    if memory["conversations"]:
-        context_text += "Conversaciones recientes:\n"
-        for conv in memory["conversations"][-5:]:  # Últimas 5 conversaciones
-            context_text += f"Usuario: {conv['user']}\nAgente: {conv['agent']}\n\n"
-    
-    # Llamar a Claude
     try:
+        # Cargar memoria
+        memory = load_memory()
+        
+        # Extraer detalles del usuario si hay
+        memory["user_details"] = extract_user_details(user_message, memory["user_details"])
+        
+        # Construir contexto para Claude
+        context_text = "Eres un agente personal amigable, casual y honesto. Tu objetivo es:\n"
+        context_text += "1. Ser un compañero de conversación genuino\n"
+        context_text += "2. Recordar detalles sobre la persona y usarlos en la conversación\n"
+        context_text += "3. Dar recomendaciones honestas (sin fabricar cosas)\n"
+        context_text += "4. Nunca mentir\n\n"
+        
+        # Agregar detalles conocidos del usuario si los hay
+        if memory["user_details"]:
+            context_text += "Detalles que sé sobre el usuario:\n"
+            for category, items in memory["user_details"].items():
+                context_text += f"- {category}: {', '.join(set(items[:3]))}\n"
+            context_text += "\n"
+        
+        # Agregar últimas conversaciones para contexto
+        if memory["conversations"]:
+            context_text += "Conversaciones recientes:\n"
+            for conv in memory["conversations"][-5:]:
+                context_text += f"Usuario: {conv['user']}\nAgente: {conv['agent']}\n\n"
+        
+        # Llamar a Claude
         await update.message.chat.send_action("typing")
         
+        client = get_anthropic_client()
         response = client.messages.create(
             model="claude-3-5-sonnet-20241022",
             max_tokens=1024,
@@ -106,7 +110,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "agent": agent_response
         })
         
-        # Mantener solo las últimas 50 conversaciones para no saturar
+        # Mantener solo las últimas 50 conversaciones
         if len(memory["conversations"]) > 50:
             memory["conversations"] = memory["conversations"][-50:]
         
@@ -118,7 +122,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
     except Exception as e:
         await update.message.reply_text(
-            f"Hubo un error: {str(e)}\n\nVerifica que tu API key sea válida."
+            f"Hubo un error: {str(e)}"
         )
 
 def main():
@@ -126,18 +130,15 @@ def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     
     if not token:
-        print("ERROR: No se encontró TELEGRAM_BOT_TOKEN en las variables de entorno")
+        print("ERROR: No se encontró TELEGRAM_BOT_TOKEN")
         return
     
-    # Crear aplicación
     application = Application.builder().token(token).build()
     
-    # Agregar handlers
     application.add_handler(CommandHandler("start", start))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     
-    # Iniciar el bot
-    print("Bot iniciado. Presiona Ctrl+C para detener.")
+    print("Bot iniciado...")
     application.run_polling()
 
 if __name__ == "__main__":
