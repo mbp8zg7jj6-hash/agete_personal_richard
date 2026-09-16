@@ -1,7 +1,10 @@
 import os
+import json
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import anthropic
+
+MEMORY = {"conversations": []}
 
 def get_client():
     return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
@@ -12,13 +15,24 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await update.message.chat.send_action("typing")
+        
+        user_msg = update.message.text
+        msgs = []
+        for conv in MEMORY["conversations"][-10:]:
+            msgs.append({"role": "user", "content": conv["user"]})
+            msgs.append({"role": "assistant", "content": conv["agent"]})
+        msgs.append({"role": "user", "content": user_msg})
+        
         client = get_client()
         response = client.messages.create(
             model="claude-sonnet-5",
             max_tokens=1024,
-            messages=[{"role": "user", "content": update.message.text}]
+            system="Eres amigable y recuerdas lo que el usuario te dice.",
+            messages=msgs
         )
+        
         answer = response.content[0].text
+        MEMORY["conversations"].append({"user": user_msg, "agent": answer})
         await update.message.reply_text(answer)
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
