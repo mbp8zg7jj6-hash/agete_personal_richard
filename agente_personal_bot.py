@@ -1,3 +1,16 @@
+import os
+from telegram import Update
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+import anthropic
+
+MEMORY = {"conversations": []}
+
+def get_client():
+    return anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("¡Hola! Soy tu agente personal.")
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     try:
         await update.message.chat.send_action("typing")
@@ -32,3 +45,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(answer)
     except Exception as e:
         await update.message.reply_text(f"Error: {e}")
+
+def main():
+    app = Application.builder().token(os.getenv("TELEGRAM_BOT_TOKEN")).build()
+    app.add_handler(CommandHandler("start", start))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+    app.run_polling()
+
+if __name__ == "__main__":
+    main()
