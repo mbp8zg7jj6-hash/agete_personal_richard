@@ -37,13 +37,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         client = get_anthropic_client()
         response = client.messages.create(
-            model="claude-sonnet-5",
-            max_tokens=1024,
-            system=context_text,
-            messages=[{"role": "user", "content": user_message}]
-        )
-        
-        agent_response = response.content[0].text
+    model="claude-sonnet-5",
+    max_tokens=1024,
+    system=context_text,
+    messages=[{"role": "user", "content": user_message}]
+)
+
+agent_response = ""
+for block in response.content:
+    if hasattr(block, "text") and block.type == "text":
+        agent_response += block.text
+
+if not agent_response:
+    agent_response = "No pude generar una respuesta. Intenta de nuevo."
         
         memory["conversations"].append({
             "timestamp": datetime.now().isoformat(),
