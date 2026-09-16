@@ -40,8 +40,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             model="claude-sonnet-5",
             max_tokens=1024,
             system=context_text,
-            messages=[{"role": "user", "content": user_message}]
-        )
+            previous_messages = []
+for conv in memory["conversations"][-5:]:
+    previous_messages.append({"role": "user", "content": conv["user"]})
+    previous_messages.append({"role": "assistant", "content": conv["agent"]})
+
+previous_messages.append({"role": "user", "content": user_message})
+
+response = client.messages.create(
+    model="claude-sonnet-5",
+    max_tokens=1024,
+    system=context_text,
+    messages=previous_messages
+)
         
         agent_response = ""
         for block in response.content:
