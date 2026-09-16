@@ -4,6 +4,11 @@ from datetime import datetime
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import anthropic
+import dropbox
+from dropbox.exceptions import ApiError
+
+DROPBOX_TOKEN = os.getenv("DROPBOX_ACCESS_TOKEN")
+MEMORY_FILE = "memory.json"
 
 def get_anthropic_client():
     api_key = os.getenv("ANTHROPIC_API_KEY")
@@ -11,17 +16,30 @@ def get_anthropic_client():
         raise ValueError("ANTHROPIC_API_KEY no configurada")
     return anthropic.Anthropic(api_key=api_key)
 
-MEMORY_FILE = "memory.json"
+def get_dropbox_client():
+    if not DROPBOX_TOKEN:
+        raise ValueError("DROPBOX_ACCESS_TOKEN no configurado")
+    return dropbox.Dropbox(DROPBOX_TOKEN)
 
 def load_memory():
-    if os.path.exists(MEMORY_FILE):
-        with open(MEMORY_FILE, 'r', encoding='utf-8') as f:
-            return json.load(f)
-    return {"conversations": [], "user_details": {}}
+    try:
+        dbx = get_dropbox_client()
+        _, response = dbx.files_download(f"/{MEMORY_FILE}")
+        data = json.loads(response.content.decode('utf-8'))
+        return data
+    except ApiError:
+        return {"conversations": [], "user_details": {}}
 
 def save_memory(memory):
-    with open(MEMORY_FILE, 'w', encoding='utf-8') as f:
-        json.dump(memory, f, ensure_ascii=False, indent=2)
+    try:
+        dbx = get_dropbox_client()
+        dbx.files_upload(
+            json.dumps(memory, ensure_ascii=False, indent=2).encode('utf-8'),
+            f"/{MEMORY_FILE}",
+            mode=dropbox.files.WriteMode('overwrite')
+        )
+    except Exception as e:
+        print(f"Error guardando en Dropbox: {e}")
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("¡Hola! Soy tu agente personal. Platiquemos, conóceme y déjame conocerte.")
