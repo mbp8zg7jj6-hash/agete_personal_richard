@@ -31,7 +31,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             messages=msgs
         )
         
-        answer = response.content[0].text
+       answer = ""
+for block in response.content:
+    if block.type == "text":
+        answer += block.text
+
+if not answer:
+    answer = "No pude responder."
         MEMORY["conversations"].append({"user": user_msg, "agent": answer})
         await update.message.reply_text(answer)
     except Exception as e:
