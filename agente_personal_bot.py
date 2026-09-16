@@ -35,24 +35,20 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         
         await update.message.chat.send_action("typing")
         
+        messages_list = []
+        for conv in memory["conversations"][-5:]:
+            messages_list.append({"role": "user", "content": conv["user"]})
+            messages_list.append({"role": "assistant", "content": conv["agent"]})
+        
+        messages_list.append({"role": "user", "content": user_message})
+        
         client = get_anthropic_client()
         response = client.messages.create(
             model="claude-sonnet-5",
             max_tokens=1024,
             system=context_text,
-            previous_messages = []
-for conv in memory["conversations"][-5:]:
-    previous_messages.append({"role": "user", "content": conv["user"]})
-    previous_messages.append({"role": "assistant", "content": conv["agent"]})
-
-previous_messages.append({"role": "user", "content": user_message})
-
-response = client.messages.create(
-    model="claude-sonnet-5",
-    max_tokens=1024,
-    system=context_text,
-    messages=previous_messages
-)
+            messages=messages_list
+        )
         
         agent_response = ""
         for block in response.content:
@@ -80,7 +76,7 @@ response = client.messages.create(
 def main():
     token = os.getenv("TELEGRAM_BOT_TOKEN")
     if not token:
-        print("ERROR: No se encontró TELEGRAM_BOT_TOKEN")
+        print("ERROR: No TELEGRAM_BOT_TOKEN")
         return
     
     application = Application.builder().token(token).build()
